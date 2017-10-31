@@ -90,8 +90,8 @@ func (c *Client) ReadSocketIO() (*socketio.Packet, error) {
 	if err != nil {
 		return nil, err
 	}
-	if mt == websocket.TextMessage {
-		return nil, errors.New("not support binary message")
+	if mt != websocket.TextMessage {
+		return nil, errors.New("support text message only")
 	}
 	_ = r
 	return nil, nil
