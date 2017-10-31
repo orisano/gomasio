@@ -6,12 +6,11 @@ import (
 	"net/url"
 
 	"github.com/gorilla/websocket"
-	"github.com/orisano/gomasio/socketio"
 	"github.com/pkg/errors"
 )
 
 type Client struct {
-	conn   *websocket.Conn
+	wsURL  *url.URL
 	logger *log.Logger
 }
 
@@ -46,13 +45,8 @@ func NewClient(host string, opts ...ClientOption) (*Client, error) {
 	u.Path = options.Path
 	u.RawQuery = options.Query.Encode()
 
-	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to connect websocket")
-	}
-
 	return &Client{
-		conn:   conn,
+		wsURL:  u,
 		logger: options.Logger,
 	}, nil
 }
@@ -85,14 +79,10 @@ func WithLogger(logger *log.Logger) ClientOption {
 	}
 }
 
-func (c *Client) ReadSocketIO() (*socketio.Packet, error) {
-	mt, r, err := c.conn.NextReader()
+func (c *Client) Connect() (*SocketIO, error) {
+	conn, _, err := websocket.DefaultDialer.Dial(c.wsURL.String(), nil)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to connect websocket")
 	}
-	if mt != websocket.TextMessage {
-		return nil, errors.New("support text message only")
-	}
-	_ = r
-	return nil, nil
+	return &SocketIO{conn}, nil
 }
