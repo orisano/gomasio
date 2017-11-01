@@ -1,5 +1,7 @@
 package engineio
 
+import "io"
+
 type PacketType int
 
 const (
@@ -10,9 +12,11 @@ const (
 	Message
 	Upgrade
 	Noop
+
+	Invalid PacketType = -1
 )
 
 type Packet struct {
 	Type PacketType
-	Data []byte
+	Body io.Reader
 }

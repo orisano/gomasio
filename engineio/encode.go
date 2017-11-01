@@ -2,6 +2,7 @@ package engineio
 
 import (
 	"bufio"
+	"errors"
 	"io"
 )
 
@@ -15,16 +16,15 @@ func NewEncoder(w io.Writer) *Encoder {
 	}
 }
 
-func (e *Encoder) Encode(p *Packet) error {
-	if err := e.w.WriteByte(byte(int(p.Type) + '0')); err != nil {
-		return err
+func (e *Encoder) Encode(packet *Packet) error {
+	if packet == nil {
+		return errors.New("missing packet")
 	}
-	if len(p.Data) > 0 {
-		if _, err := e.w.Write(p.Data); err != nil {
-			return err
-		}
+	e.w.WriteByte(byte(int(packet.Type) + '0'))
+	if packet.Body != nil {
+		io.Copy(e.w, packet.Body)
 	}
-	return nil
+	return e.w.Flush()
 }
 
 var ping = []byte{byte('0' + int(Ping))}

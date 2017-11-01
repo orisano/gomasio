@@ -1,5 +1,9 @@
 package socketio
 
+import (
+	"io"
+)
+
 type PacketType int
 
 const (
@@ -17,5 +21,5 @@ type Packet struct {
 	Attachments int
 	Namespace   string
 	ID          int
-	Data        []byte
+	Body        io.Reader
 }

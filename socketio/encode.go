@@ -3,8 +3,8 @@ package socketio
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"io"
+	"strconv"
 )
 
 type Encoder struct {
@@ -21,29 +21,16 @@ func (e *Encoder) Encode(packet *Packet) error {
 	if packet == nil {
 		return errors.New("missing packet")
 	}
-	if err := e.w.WriteByte(byte(int(packet.Type) + '0')); err != nil {
-		return err
-	}
+	e.w.WriteByte(byte(int(packet.Type) + '0'))
 	if len(packet.Namespace) > 0 && packet.Namespace != "/" {
-		if _, err := e.w.WriteString(packet.Namespace); err != nil {
-			return err
-		}
-		if err := e.w.WriteByte(','); err != nil {
-			return err
-		}
+		e.w.WriteString(packet.Namespace)
+		e.w.WriteByte(',')
 	}
 	if packet.ID >= 0 {
-		if _, err := fmt.Fprint(e.w, packet.ID); err != nil {
-			return err
-		}
+		e.w.WriteString(strconv.Itoa(packet.ID))
 	}
-	if packet.Data != nil {
-		if _, err := e.w.Write(packet.Data); err != nil {
-			return err
-		}
+	if packet.Body != nil {
+		io.Copy(e.w, packet.Body)
 	}
-	if err := e.w.Flush(); err != nil {
-		return err
-	}
-	return nil
+	return e.w.Flush()
 }

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strconv"
 )
 
@@ -56,11 +55,7 @@ func (d *Decoder) Decode() (*Packet, error) {
 	}
 	p.ID = id
 
-	data, err := ioutil.ReadAll(d.r)
-	if err != io.EOF && err != nil {
-		return nil, err
-	}
-	p.Data = data
+	p.Body = d.r
 	return p, nil
 }
 
