@@ -12,6 +12,7 @@ import (
 )
 
 type Handler interface {
+	HandlePacket(packet *socketio.Packet)
 }
 
 var TimeNow func() time.Time = time.Now
@@ -36,13 +37,13 @@ func Connect(ctx context.Context, conn *Conn, handler Handler) error {
 			// logging err
 			return err
 		}
-		ept, err := engineio.ReadType(r)
+		ep, err := engineio.NewDecoder(r).Decode()
 		if err != nil {
 			// logging err
 			continue
 		}
 		s.heartbeat()
-		switch ept {
+		switch ep.Type {
 		case engineio.Open:
 			return errors.New("invalid communication flow")
 		case engineio.Close:
@@ -53,10 +54,11 @@ func Connect(ctx context.Context, conn *Conn, handler Handler) error {
 			s.setPing()
 			break
 		case engineio.Message:
-			sp, err := socketio.NewDecoder(r).Decode()
+			sp, err := socketio.NewDecoder(ep.Body).Decode()
 			if err != nil {
 				return errors.Wrap(err, "invalid socket.io packet")
 			}
+
 		case engineio.Upgrade:
 			return errors.New("not support upgrade packet")
 		case engineio.Noop:
@@ -70,16 +72,16 @@ func handshake(conn *Conn) (*engineio.Session, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to initial read")
 	}
-	ept, err := engineio.ReadType(r)
+	ep, err := engineio.NewDecoder(r).Decode()
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid initial engine.io packet")
 	}
-	if ept != engineio.Open {
+	if ep.Type != engineio.Open {
 		return nil, errors.Errorf("unexpected engine.io packet type. expected: %v, but got: %v", engineio.Open, ept)
 	}
 
 	var session engineio.Session
-	if err := json.NewDecoder(r).Decode(&session); err != nil {
+	if err := json.NewDecoder(ep.Body).Decode(&session); err != nil {
 		return nil, errors.Wrap(err, "invalid session json")
 	}
 	return &session, nil
