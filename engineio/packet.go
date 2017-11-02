@@ -5,15 +5,15 @@ import "io"
 type PacketType int
 
 const (
-	Open PacketType = iota
-	Close
-	Ping
-	Pong
-	Message
-	Upgrade
-	Noop
+	OPEN PacketType = iota
+	CLOSE
+	PING
+	PONG
+	MESSAGE
+	UPGRADE
+	NOOP
 
-	Invalid PacketType = -1
+	INVALID PacketType = -1
 )
 
 type Packet struct {

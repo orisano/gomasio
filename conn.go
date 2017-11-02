@@ -1,29 +1,62 @@
 package gomasio
 
 import (
+	"bytes"
 	"errors"
 	"io"
 
 	"github.com/gorilla/websocket"
+	"github.com/orisano/gomasio/internal"
 )
 
-// ref: https://godoc.org/github.com/gorilla/websocket#hdr-Concurrency
-type Conn struct {
-	conn *websocket.Conn
+type WriteFlusher interface {
+	io.Writer
+	Flush() error
 }
 
-func NewConn(urlStr string) (*Conn, error) {
-	conn, _, err := websocket.DefaultDialer.Dial(urlStr, nil)
+type WriterFactory interface {
+	NewWriter() WriteFlusher
+}
+
+type Conn interface {
+	WriterFactory
+	NextReader() (io.Reader, error)
+	Close() error
+}
+
+// ref: https://godoc.org/github.com/gorilla/websocket#hdr-Concurrency
+type conn struct {
+	ws  *websocket.Conn
+	wch chan io.Reader
+}
+
+func NewConn(urlStr string, writerQueueSize uint) (Conn, error) {
+	ws, _, err := websocket.DefaultDialer.Dial(urlStr, nil)
 	if err != nil {
 		return nil, err
 	}
-	return &Conn{
-		conn: conn,
+
+	wch := make(chan io.Reader, writerQueueSize)
+	go func() {
+		for r := range wch {
+			wc, err := ws.NextWriter(websocket.TextMessage)
+			if err != nil {
+				internal.Log("[ERROR] failed to get writer", err)
+			}
+			if _, err := io.Copy(wc, r); err != nil {
+				internal.Log("[ERROR] failed to write websocket", err)
+			}
+			wc.Close()
+		}
+	}()
+	return &conn{
+		ws:  ws,
+		wch: wch,
 	}, nil
 }
 
-func (c *Conn) NextReader() (io.Reader, error) {
-	mt, r, err := c.conn.NextReader()
+func (c *conn) NextReader() (io.Reader, error) {
+	mt, r, err := c.ws.NextReader()
 	if err != nil {
 		return nil, err
 	}
@@ -33,10 +66,25 @@ func (c *Conn) NextReader() (io.Reader, error) {
 	return r, nil
 }
 
-func (c *Conn) NextWriter() (io.WriteCloser, error) {
-	return c.conn.NextWriter(websocket.TextMessage)
+func (c *conn) NewWriter() WriteFlusher {
+	return &asyncWriter{q: c.wch, buf: new(bytes.Buffer)}
 }
 
-func (c *Conn) Close() error {
-	return c.conn.Close()
+func (c *conn) Close() error {
+	close(c.wch)
+	return c.ws.Close()
+}
+
+type asyncWriter struct {
+	q   chan<- io.Reader
+	buf *bytes.Buffer
+}
+
+func (w *asyncWriter) Write(p []byte) (n int, err error) {
+	return w.buf.Write(p)
+}
+
+func (w *asyncWriter) Flush() error {
+	w.q <- w.buf
+	return nil
 }

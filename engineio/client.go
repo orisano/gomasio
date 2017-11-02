@@ -1,94 +1,103 @@
-package gomasio
+package engineio
 
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"sync"
 	"time"
 
-	"github.com/orisano/gomasio/engineio"
-	"github.com/orisano/gomasio/socketio"
+	"github.com/orisano/gomasio"
 	"github.com/pkg/errors"
 )
 
 type Handler interface {
-	HandlePacket(packet *socketio.Packet)
+	HandleMessage(wf gomasio.WriterFactory, body io.Reader)
 }
 
-var TimeNow func() time.Time = time.Now
+type HandleFunc func(wf gomasio.WriterFactory, body io.Reader)
 
-func Connect(ctx context.Context, conn *Conn, handler Handler) error {
+func (f HandleFunc) HandleMessage(wf gomasio.WriterFactory, body io.Reader) {
+	f(wf, body)
+}
+
+func Connect(ctx context.Context, conn gomasio.Conn, handler Handler) error {
 	session, err := handshake(conn)
 	if err != nil {
 		return errors.Wrap(err, "failed to handshake")
 	}
-
 	s := &socket{
 		conn:         conn,
 		pingInterval: time.Duration(session.PingInterval) * time.Millisecond,
 		pingTimeout:  time.Duration(session.PingTimeout) * time.Millisecond,
 		closed:       make(chan struct{}),
 	}
-	s.setPing()
-
-	for {
-		r, err := conn.NextReader()
-		if err != nil {
-			// logging err
-			return err
-		}
-		ep, err := engineio.NewDecoder(r).Decode()
-		if err != nil {
-			// logging err
-			continue
-		}
-		s.heartbeat()
-		switch ep.Type {
-		case engineio.Open:
-			return errors.New("invalid communication flow")
-		case engineio.Close:
-			return nil
-		case engineio.Ping:
-			return errors.New("unexpected server ping")
-		case engineio.Pong:
-			s.setPing()
-			break
-		case engineio.Message:
-			sp, err := socketio.NewDecoder(ep.Body).Decode()
-			if err != nil {
-				return errors.Wrap(err, "invalid socket.io packet")
-			}
-
-		case engineio.Upgrade:
-			return errors.New("not support upgrade packet")
-		case engineio.Noop:
-			break
-		}
-	}
+	defer s.Close()
+	return listen(ctx, s, handler)
 }
 
-func handshake(conn *Conn) (*engineio.Session, error) {
+func handshake(conn gomasio.Conn) (*Session, error) {
 	r, err := conn.NextReader()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to initial read")
 	}
-	ep, err := engineio.NewDecoder(r).Decode()
+	p, err := NewDecoder(r).Decode()
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid initial engine.io packet")
 	}
-	if ep.Type != engineio.Open {
-		return nil, errors.Errorf("unexpected engine.io packet type. expected: %v, but got: %v", engineio.Open, ept)
+	if p.Type != OPEN {
+		return nil, errors.Errorf("unexpected engine.io packet type. expected: %v, but got: %v", OPEN, p.Type)
 	}
 
-	var session engineio.Session
-	if err := json.NewDecoder(ep.Body).Decode(&session); err != nil {
+	var session Session
+	if err := json.NewDecoder(p.Body).Decode(&session); err != nil {
 		return nil, errors.Wrap(err, "invalid session json")
 	}
 	return &session, nil
 }
 
+func listen(ctx context.Context, s *socket, handler Handler) error {
+	wf := NewWriterFactory(s.conn)
+	for {
+		select {
+		case <-ctx.Done():
+			// TODO: stop all spawned handlers
+			return nil
+		case <-s.closed:
+			return errors.New("timeout ping")
+		default:
+			r, err := s.conn.NextReader()
+			if err != nil {
+				return err
+			}
+			p, err := NewDecoder(r).Decode()
+			if err != nil {
+				return err
+			}
+			s.Heartbeat()
+			switch p.Type {
+			case OPEN:
+				return errors.New("invalid communication flow")
+			case CLOSE:
+				return nil
+			case PING:
+				return errors.New("unexpected server ping")
+			case PONG:
+				s.PingAfter()
+				break
+			case MESSAGE:
+				go handler.HandleMessage(wf, p.Body)
+			case UPGRADE:
+				return errors.New("not support upgrade packet")
+			case NOOP:
+				break
+			}
+		}
+	}
+}
+
 type socket struct {
-	conn         *Conn
+	conn         gomasio.Conn
 	pingInterval time.Duration
 	pingTimeout  time.Duration
 
@@ -102,7 +111,7 @@ type socket struct {
 	timeoutCancel context.CancelFunc
 }
 
-func (s *socket) setPing() {
+func (s *socket) PingAfter() {
 	if s.pingCancel != nil {
 		s.pingCancel()
 	}
@@ -113,22 +122,15 @@ func (s *socket) setPing() {
 		case <-ctx.Done():
 			return
 		case <-time.After(s.pingInterval):
-			wc, err := s.conn.NextWriter()
-			if err != nil {
-				// logging err
-				return
-			}
-			defer wc.Close()
-			if err := engineio.WritePing(wc); err != nil {
-				// logging err
-				return
-			}
+			wf := s.conn.NewWriter()
+			defer wf.Flush()
+			WritePing(wf)
 			s.setTimeout(s.pingTimeout)
 		}
 	}(s.pingCtx)
 }
 
-func (s *socket) heartbeat() {
+func (s *socket) Heartbeat() {
 	s.setTimeout(s.pingInterval + s.pingTimeout)
 }
 
@@ -150,7 +152,7 @@ func (s *socket) setTimeout(d time.Duration) {
 	}(s.timeoutCtx)
 }
 
-func (s *socket) close() {
+func (s *socket) Close() {
 	if s.pingCancel != nil {
 		s.pingCancel()
 	}

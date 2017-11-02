@@ -21,7 +21,7 @@ func (e *Encoder) Encode(packet *Packet) error {
 	if packet == nil {
 		return errors.New("missing packet")
 	}
-	e.w.WriteByte(byte(int(packet.Type) + '0'))
+	e.w.WriteByte(byte(packet.Type) + '0')
 	if len(packet.Namespace) > 0 && packet.Namespace != "/" {
 		e.w.WriteString(packet.Namespace)
 		e.w.WriteByte(',')

@@ -2,10 +2,10 @@ package socketio
 
 import (
 	"bufio"
-	"errors"
-	"fmt"
 	"io"
 	"strconv"
+
+	"github.com/pkg/errors"
 )
 
 var IllegalAttachmentsError = errors.New("illegal attachments")
@@ -24,34 +24,35 @@ func NewDecoder(r io.Reader) *Decoder {
 func (d *Decoder) Decode() (*Packet, error) {
 	b, err := d.r.ReadByte()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to read first byte")
 	}
-	if x := b - '0'; x < 0 || 7 < x {
-		return nil, fmt.Errorf("invalid packet type. got: %v", b)
+	x := b - '0'
+	if x < 0 || 6 < x {
+		return nil, errors.Errorf("invalid packet type. got: %v", b)
 	}
 
 	p := &Packet{
-		Type:        PacketType(b - '0'),
+		Type:        PacketType(x),
 		Attachments: -1,
 	}
 
-	if p.Type == BinaryEvent || p.Type == BinaryAck {
+	if p.Type == BINARY_EVENT || p.Type == BINARY_ACK {
 		attachments, err := d.parseAttachments()
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to parse attachments")
 		}
 		p.Attachments = attachments
 	}
 
 	namespace, err := d.parseNamespace()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to parse namespace")
 	}
 	p.Namespace = namespace
 
 	id, err := d.parseID()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to parse ID")
 	}
 	p.ID = id
 
@@ -76,6 +77,9 @@ func (d *Decoder) parseAttachments() (int, error) {
 
 func (d *Decoder) parseNamespace() (string, error) {
 	b, err := d.r.ReadByte()
+	if err == io.EOF {
+		return "/", nil
+	}
 	if err != nil {
 		return "", err
 	}

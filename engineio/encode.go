@@ -27,7 +27,7 @@ func (e *Encoder) Encode(packet *Packet) error {
 	return e.w.Flush()
 }
 
-var ping = []byte{byte('0' + int(Ping))}
+var ping = []byte{byte(PING) + '0'}
 
 func WritePing(w io.Writer) error {
 	_, err := w.Write(ping)

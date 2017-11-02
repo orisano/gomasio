@@ -7,13 +7,13 @@ import (
 type PacketType int
 
 const (
-	Connect PacketType = iota
-	Disconnect
-	Event
-	Ack
-	Error
-	BinaryEvent
-	BinaryAck
+	CONNECT PacketType = iota
+	DISCONNECT
+	EVENT
+	ACK
+	ERROR
+	BINARY_EVENT
+	BINARY_ACK
 )
 
 type Packet struct {
