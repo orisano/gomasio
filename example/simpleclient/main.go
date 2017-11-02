@@ -25,7 +25,14 @@ func run() error {
 	ptm.HandleFunc(socketio.CONNECT, func(ctx socketio.Context) {
 		go func() {
 			for i := 0; i < 30; i++ {
-				ctx.Emit("count", i)
+				hello := &struct {
+					Id  int    `json:"id"`
+					Msg string `json:"msg"`
+				}{
+					Id:  i,
+					Msg: "hello",
+				}
+				ctx.Emit("/message", hello)
 				time.Sleep(1 * time.Second)
 			}
 			ctx.Disconnect()
