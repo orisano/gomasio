@@ -58,6 +58,7 @@ func handshake(conn gomasio.Conn) (*Session, error) {
 
 func listen(ctx context.Context, s *socket, handler Handler) error {
 	wf := NewWriterFactory(s.conn)
+	s.PingAfter()
 	for {
 		select {
 		case <-ctx.Done():
