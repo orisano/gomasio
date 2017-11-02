@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/orisano/gomasio"
 	"github.com/orisano/gomasio/engineio"
@@ -20,14 +21,23 @@ func run() error {
 		return errors.Wrap(err, "failed to construct connection")
 	}
 
-	em := socketio.NewEventMux()
-	em.HandleFunc("say", func(ctx socketio.Context) {
-		ctx.Emit("reply", "client")
-	})
-	em.HandleFunc("reply", func(ctx socketio.Context) {
-		ctx.Emit("say", "client")
-	})
 	ptm := socketio.NewPacketTypeMux()
+	ptm.HandleFunc(socketio.CONNECT, func(ctx socketio.Context) {
+		go func() {
+			for i := 0; i < 30; i++ {
+				ctx.Emit("count", i)
+				time.Sleep(1 * time.Second)
+			}
+			ctx.Disconnect()
+		}()
+	})
+
+	em := socketio.NewEventMux()
+	em.HandleFunc("news", func(ctx socketio.Context) {
+		var msg map[string]string
+		ctx.Args(&msg)
+		log.Print(msg)
+	})
 	ptm.Handle(socketio.EVENT, em)
 
 	ctx := context.Background()
