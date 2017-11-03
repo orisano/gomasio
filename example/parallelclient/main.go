@@ -36,8 +36,6 @@ func run() error {
 		return errors.Wrap(err, "failed to construct url")
 	}
 	ctx := context.Background()
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(sec)*time.Second)
-	defer cancel()
 
 	ptm := socketio.NewPacketTypeMux()
 	ptm.HandleFunc(socketio.CONNECT, func(sctx socketio.Context) {
@@ -56,22 +54,31 @@ func run() error {
 	})
 	h := socketio.OverEngineIO(ptm)
 
+	conns := make([]gomasio.Conn, 0, workers)
+	for i := 0; i < workers; i++ {
+		var conn gomasio.Conn
+		err := retry.Do(func() error {
+			var err error
+			conn, err = gomasio.NewConn(u.String(), 100)
+			return err
+		})
+		if err != nil {
+			return errors.Wrapf(err, "failed to create connection: %v", i)
+		}
+		conns = append(conns, conn)
+	}
+
+	log.Print("start")
+
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(sec)*time.Second)
+	defer cancel()
 	eg, ctx := errgroup.WithContext(ctx)
 	for i := 0; i < workers; i++ {
+		id := i
 		eg.Go(func() error {
-			var conn gomasio.Conn
-			err := retry.Do(func() error {
-				var err error
-				conn, err = gomasio.NewConn(u.String(), 100)
-				return err
-			})
-			if err != nil {
-				return errors.Wrap(err, "failed to get connection")
-			}
-			return engineio.Connect(ctx, conn, h)
+			return engineio.Connect(ctx, conns[id], h)
 		})
 	}
-	log.Print("start")
 	<-ctx.Done()
 	return eg.Wait()
 }
