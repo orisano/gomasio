@@ -22,25 +22,25 @@ func (f HandleFunc) HandleMessage(wf gomasio.WriterFactory, body io.Reader) {
 }
 
 func Connect(ctx context.Context, conn gomasio.Conn, handler Handler) error {
-	session, err := handshake(conn)
+	r, err := conn.NextReader()
 	if err != nil {
-		return errors.Wrap(err, "failed to handshake")
+		return errors.Wrap(err, "failed to get reader")
+	}
+	session, err := readHandshake(r)
+	if err != nil {
+		return errors.Wrap(err, "failed to read handshake data")
 	}
 	s := &socket{
 		conn:         conn,
 		pingInterval: time.Duration(session.PingInterval) * time.Millisecond,
 		pingTimeout:  time.Duration(session.PingTimeout) * time.Millisecond,
-		closed:       make(chan struct{}),
+		timeout:      make(chan struct{}),
 	}
 	defer s.Close()
 	return listen(ctx, s, handler)
 }
 
-func handshake(conn gomasio.Conn) (*Session, error) {
-	r, err := conn.NextReader()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to initial read")
-	}
+func readHandshake(r io.Reader) (*Session, error) {
 	p, err := NewDecoder(r).Decode()
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid initial engine.io packet")
@@ -57,24 +57,30 @@ func handshake(conn gomasio.Conn) (*Session, error) {
 }
 
 func listen(ctx context.Context, s *socket, handler Handler) error {
+	wg := new(sync.WaitGroup)
+	defer wg.Wait()
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	wf := NewWriterFactory(s.conn)
 	s.PingAfter()
 	for {
 		select {
 		case <-ctx.Done():
-			// TODO: stop all spawned handlers
 			return nil
-		case <-s.closed:
-			return errors.New("timeout ping")
+		case <-s.timeout:
+			return errors.New("timeout ping response")
 		default:
 			r, err := s.conn.NextReader()
 			if err != nil {
-				return err
+				return errors.Wrap(err, "failed to get reader")
 			}
 			p, err := NewDecoder(r).Decode()
 			if err != nil {
-				return err
+				return errors.Wrap(err, "failed to decode engine.io packet")
 			}
+
 			s.Heartbeat()
 			switch p.Type {
 			case OPEN:
@@ -87,7 +93,11 @@ func listen(ctx context.Context, s *socket, handler Handler) error {
 				s.PingAfter()
 				break
 			case MESSAGE:
-				go handler.HandleMessage(wf, p.Body)
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					handler.HandleMessage(wf, p.Body)
+				}()
 			case UPGRADE:
 				return errors.New("not support upgrade packet")
 			case NOOP:
@@ -102,13 +112,11 @@ type socket struct {
 	pingInterval time.Duration
 	pingTimeout  time.Duration
 
-	closed chan struct{}
+	timeout chan struct{}
 
-	pingCtx    context.Context
 	pingCancel context.CancelFunc
 
 	timeoutLock   sync.Mutex
-	timeoutCtx    context.Context
 	timeoutCancel context.CancelFunc
 }
 
@@ -117,8 +125,8 @@ func (s *socket) PingAfter() {
 		s.pingCancel()
 	}
 	ctx := context.Background()
-	s.pingCtx, s.pingCancel = context.WithCancel(ctx)
-	go func(ctx context.Context) {
+	ctx, s.pingCancel = context.WithCancel(ctx)
+	go func() {
 		select {
 		case <-ctx.Done():
 			return
@@ -128,7 +136,7 @@ func (s *socket) PingAfter() {
 			WritePing(wf)
 			s.setTimeout(s.pingTimeout)
 		}
-	}(s.pingCtx)
+	}()
 }
 
 func (s *socket) Heartbeat() {
@@ -142,15 +150,15 @@ func (s *socket) setTimeout(d time.Duration) {
 		s.timeoutCancel()
 	}
 	ctx := context.Background()
-	s.timeoutCtx, s.timeoutCancel = context.WithCancel(ctx)
-	go func(ctx context.Context) {
+	ctx, s.timeoutCancel = context.WithCancel(ctx)
+	go func() {
 		select {
 		case <-ctx.Done():
 			return
 		case <-time.After(d):
-			s.closed <- struct{}{}
+			s.timeout <- struct{}{}
 		}
-	}(s.timeoutCtx)
+	}()
 }
 
 func (s *socket) Close() {
