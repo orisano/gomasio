@@ -14,9 +14,9 @@ type Context interface {
 	Body() io.Reader
 
 	Event() string
-	Args(dst interface{}) error
+	Args(dst ...interface{}) error
 
-	Emit(event string, args interface{}) error
+	Emit(event string, args ...interface{}) error
 	Disconnect() error
 }
 
@@ -58,20 +58,32 @@ func (c *context) Event() string {
 	return c.event.Name
 }
 
-func (c *context) Args(dst interface{}) error {
-	return json.Unmarshal(c.event.Args, dst)
+func (c *context) Args(dst ...interface{}) error {
+	if len(dst) != len(c.event.Args) {
+		return errors.New("not match args length")
+	}
+	for i := range dst {
+		if err := json.Unmarshal(c.event.Args[i], dst[i]); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func (c *context) Emit(event string, args interface{}) error {
+func (c *context) Emit(event string, args ...interface{}) error {
 	e := &Event{
 		Name: event,
 	}
-	if args != nil {
-		b, err := json.Marshal(args)
-		if err != nil {
-			return errors.Wrap(err, "failed to marshal args")
+	asize := len(args)
+	if asize > 0 {
+		e.Args = make([][]byte, 0, asize)
+		for _, arg := range args {
+			b, err := json.Marshal(arg)
+			if err != nil {
+				return errors.Wrap(err, "failed to marshal args")
+			}
+			e.Args = append(e.Args, b)
 		}
-		e.Args = b
 	}
 
 	wf := c.wf.NewWriter()
