@@ -35,7 +35,7 @@ func (f *testWriterFactory) NewWriter() gomasio.WriteFlusher {
 func TestContext_Emit(t *testing.T) {
 	ts := []struct {
 		event    string
-		args     interface{}
+		args     []interface{}
 		expected string
 	}{
 		{
@@ -45,23 +45,23 @@ func TestContext_Emit(t *testing.T) {
 		},
 		{
 			event:    "string",
-			args:     "hoge",
+			args:     []interface{}{"hoge"},
 			expected: `2["string","hoge"]` + "\n",
 		},
 		{
 			event:    "number",
-			args:     1,
+			args:     []interface{}{1},
 			expected: `2["number",1]` + "\n",
 		},
 		{
 			event: "custom",
-			args: &struct {
+			args: []interface{}{&struct {
 				Id  int    `json:"id"`
 				Msg string `json:"msg"`
 			}{
 				Id:  15,
 				Msg: "hello",
-			},
+			}},
 			expected: `2["custom",{"id":15,"msg":"hello"}]` + "\n",
 		},
 	}
@@ -72,7 +72,7 @@ func TestContext_Emit(t *testing.T) {
 			t.Error(err)
 			continue
 		}
-		if err := ctx.Emit(tc.event, tc.args); err != nil {
+		if err := ctx.Emit(tc.event, tc.args...); err != nil {
 			t.Error(err)
 			continue
 		}
