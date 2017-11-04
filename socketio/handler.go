@@ -1,6 +1,7 @@
 package socketio
 
 import (
+	stdctx "context"
 	"io"
 
 	"github.com/orisano/gomasio"
@@ -34,6 +35,10 @@ func (h *engineioHandler) HandleMessage(wf gomasio.WriterFactory, body io.Reader
 		return
 	}
 	h.handler.HandleSocketIO(ctx)
+}
+
+func Connect(ctx stdctx.Context, conn gomasio.Conn, handler Handler) error {
+	return engineio.Connect(ctx, conn, OverEngineIO(handler))
 }
 
 func OverEngineIO(handler Handler) engineio.Handler {
