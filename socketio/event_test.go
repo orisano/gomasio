@@ -15,13 +15,13 @@ func TestEvent_MarshalJSON(t *testing.T) {
 			expected: `["hello"]`,
 		},
 		{
-			event:    Event{Name: "hello", Args: [][]byte{[]byte(`{"hello":"world"}`)}},
+			event:    Event{Name: "hello", Args: []json.RawMessage{[]byte(`{"hello":"world"}`)}},
 			expected: `["hello",{"hello":"world"}]`,
 		},
 		{
 			event: Event{
 				Name: "hello",
-				Args: [][]byte{
+				Args: []json.RawMessage{
 					[]byte(`{"hello":"world"}`),
 					[]byte(`1`),
 					[]byte(`"olleh"`),

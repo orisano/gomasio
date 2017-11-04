@@ -7,19 +7,17 @@ import (
 
 type Event struct {
 	Name string
-	Args [][]byte
+	Args []json.RawMessage
 }
 
 func (e *Event) MarshalJSON() ([]byte, error) {
-	msg := make([]json.RawMessage, 0, 1+len(e.Args))
+	msg := make([]json.RawMessage, 1+len(e.Args))
 	name, err := json.Marshal(e.Name)
 	if err != nil {
 		return nil, err
 	}
-	msg = append(msg, json.RawMessage(name))
-	for _, arg := range e.Args {
-		msg = append(msg, json.RawMessage(arg))
-	}
+	msg[0] = name
+	copy(msg[1:], e.Args)
 	return json.Marshal(msg)
 }
 
@@ -35,9 +33,9 @@ func (e *Event) UnmarshalJSON(p []byte) error {
 	if err := json.Unmarshal(msg[0], &e.Name); err != nil {
 		return err
 	}
-	e.Args = make([][]byte, 0, m-1)
-	for _, arg := range msg[1:] {
-		e.Args = append(e.Args, arg)
+	if m > 1 {
+		e.Args = make([]json.RawMessage, m-1)
+		copy(e.Args, msg[1:])
 	}
 	return nil
 }

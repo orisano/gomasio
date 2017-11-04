@@ -76,7 +76,7 @@ func (c *context) Emit(event string, args ...interface{}) error {
 	}
 	asize := len(args)
 	if asize > 0 {
-		e.Args = make([][]byte, 0, asize)
+		e.Args = make([]json.RawMessage, 0, asize)
 		for _, arg := range args {
 			b, err := json.Marshal(arg)
 			if err != nil {
