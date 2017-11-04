@@ -41,10 +41,12 @@ func NewConn(urlStr string, writerQueueSize uint) (Conn, error) {
 		for r := range wch {
 			wc, err := ws.NextWriter(websocket.TextMessage)
 			if err != nil {
-				internal.Log("[ERROR] failed to get writer", err)
+				internal.Log("[ERROR] failed to get writer: ", err)
+				continue
 			}
 			if _, err := io.Copy(wc, r); err != nil {
-				internal.Log("[ERROR] failed to write websocket", err)
+				internal.Log("[ERROR] failed to write websocket: ", err)
+				continue
 			}
 			wc.Close()
 		}
