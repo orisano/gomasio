@@ -86,9 +86,14 @@ func (c *context) Emit(event string, args ...interface{}) error {
 		}
 	}
 
+	p := Packet{
+		Type:      EVENT,
+		Namespace: c.packet.Namespace,
+		ID:        -1,
+	}
 	wf := c.wf.NewWriter()
-	if _, err := wf.Write([]byte{byte(EVENT) + '0'}); err != nil {
-		return errors.Wrap(err, "failed to write type")
+	if err := NewEncoder(wf).Encode(&p); err != nil {
+		return errors.Wrap(err, "failed to encode header")
 	}
 	if err := json.NewEncoder(wf).Encode(e); err != nil {
 		return errors.Wrap(err, "failed to encode event")
