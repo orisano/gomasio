@@ -37,12 +37,15 @@ func run() error {
 	}
 	ctx := context.Background()
 
+	wait := make(chan struct{})
+
 	ptm := socketio.NewPacketTypeMux()
 	ptm.HandleFunc(socketio.CONNECT, func(sctx socketio.Context) {
 		b := make([]byte, 6)
 		rand.Read(b)
 		id := base64.StdEncoding.EncodeToString(b)
 
+		<-wait
 		for {
 			select {
 			case <-ctx.Done():
@@ -53,8 +56,9 @@ func run() error {
 		}
 	})
 	h := socketio.OverEngineIO(ptm)
-
-	conns := make([]gomasio.Conn, 0, workers)
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(sec)*time.Second)
+	defer cancel()
+	eg, ctx := errgroup.WithContext(ctx)
 	for i := 0; i < workers; i++ {
 		var conn gomasio.Conn
 		err := retry.Do(func() error {
@@ -63,22 +67,16 @@ func run() error {
 			return err
 		})
 		if err != nil {
-			return errors.Wrapf(err, "failed to create connection: %v", i)
+			return errors.Wrap(err, "failed to create connection")
 		}
-		conns = append(conns, conn)
-	}
-
-	log.Print("start")
-
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(sec)*time.Second)
-	defer cancel()
-	eg, ctx := errgroup.WithContext(ctx)
-	for i := 0; i < workers; i++ {
-		id := i
 		eg.Go(func() error {
-			return engineio.Connect(ctx, conns[id], h)
+
+			return engineio.Connect(ctx, conn, h)
 		})
 	}
+
+	close(wait)
+	log.Print("start")
 	<-ctx.Done()
 	return eg.Wait()
 }
