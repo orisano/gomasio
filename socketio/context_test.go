@@ -8,28 +8,12 @@ import (
 	"github.com/orisano/gomasio"
 )
 
-type nopFlusher struct {
-	w io.Writer
-}
-
-func (f *nopFlusher) Write(p []byte) (n int, err error) {
-	return f.w.Write(p)
-}
-
-func (*nopFlusher) Flush() error {
-	return nil
-}
-
-func NopFlusher(w io.Writer) gomasio.WriteFlusher {
-	return &nopFlusher{w}
-}
-
 type testWriterFactory struct {
 	w io.Writer
 }
 
 func (f *testWriterFactory) NewWriter() gomasio.WriteFlusher {
-	return NopFlusher(f.w)
+	return gomasio.NopFlusher(f.w)
 }
 
 func TestContext_Emit(t *testing.T) {
