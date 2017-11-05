@@ -101,11 +101,14 @@ func (c *context) Emit(event string, args ...interface{}) error {
 	return wf.Flush()
 }
 
-var disconnect = []byte{byte(DISCONNECT) + '0'}
-
 func (c *context) Disconnect() error {
 	wf := c.wf.NewWriter()
-	if _, err := wf.Write(disconnect); err != nil {
+	p := Packet{
+		Type:      DISCONNECT,
+		Namespace: c.packet.Namespace,
+		ID:        -1,
+	}
+	if err := NewEncoder(wf).Encode(&p); err != nil {
 		return err
 	}
 	return wf.Flush()
