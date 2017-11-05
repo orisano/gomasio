@@ -90,3 +90,19 @@ func (w *asyncWriter) Flush() error {
 	w.q <- w.buf
 	return nil
 }
+
+type nopFlusher struct {
+	w io.Writer
+}
+
+func (f *nopFlusher) Write(p []byte) (n int, err error) {
+	return f.w.Write(p)
+}
+
+func (f *nopFlusher) Flush() error {
+	return nil
+}
+
+func NopFlusher(w io.Writer) WriteFlusher {
+	return &nopFlusher{w}
+}
