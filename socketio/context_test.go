@@ -82,6 +82,37 @@ func TestContext_Emit(t *testing.T) {
 	}
 }
 
+func TestContext_Event(t *testing.T) {
+	b := new(bytes.Buffer)
+	ts := []struct {
+		body     string
+		expected string
+	}{
+		{
+			body:     `["message"]`,
+			expected: "message",
+		},
+		{
+			body:     `["reply",1,2,3,4,5,6,7]`,
+			expected: "reply",
+		},
+	}
+	for _, tc := range ts {
+		ctx, err := NewContext(&testWriterFactory{b}, &Packet{
+			Type: EVENT,
+			Body: bytes.NewBufferString(tc.body),
+		})
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		if got := ctx.Event(); got != tc.expected {
+			t.Errorf("unexpected event name. expected: %v, but got: %v", tc.expected, got)
+		}
+	}
+
+}
+
 func TestContext_Args(t *testing.T) {
 	b := new(bytes.Buffer)
 	ctx, err := NewContext(&testWriterFactory{b}, &Packet{
