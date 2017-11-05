@@ -81,3 +81,29 @@ func TestContext_Emit(t *testing.T) {
 		}
 	}
 }
+
+func TestContext_Args(t *testing.T) {
+	b := new(bytes.Buffer)
+	ctx, err := NewContext(&testWriterFactory{b}, &Packet{
+		Type: EVENT,
+		Body: bytes.NewBufferString(`["sample",1,"test",{"dict":1}]`),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var i int
+	var s string
+	var d map[string]int
+	if err := ctx.Args(&i, &s, &d); err != nil {
+		t.Fatal(err)
+	}
+	if i != 1 {
+		t.Errorf("unexpected number. expected: 1, but got: %v", i)
+	}
+	if s != "test" {
+		t.Errorf("unexpected string. expected: test, but got: %v", s)
+	}
+	if got := d["dict"]; got != 1 {
+		t.Errorf("unexpected d['dict']. expected: 1, but got: %v", got)
+	}
+}
