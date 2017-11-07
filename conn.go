@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"net/http"
 
 	"github.com/gorilla/websocket"
 	"github.com/orisano/gomasio/internal"
@@ -30,13 +31,50 @@ type conn struct {
 	wch chan io.Reader
 }
 
-func NewConn(urlStr string, writerQueueSize uint) (Conn, error) {
-	ws, _, err := websocket.DefaultDialer.Dial(urlStr, nil)
+type ConnOptions struct {
+	QueueSize uint
+	Header    http.Header
+	Dialer    *websocket.Dialer
+}
+
+type ConnOption func(o *ConnOptions)
+
+func WithQueueSize(qsize uint) ConnOption {
+	return func(o *ConnOptions) {
+		o.QueueSize = qsize
+	}
+}
+
+func WithHeader(h http.Header) ConnOption {
+	return func(o *ConnOptions) {
+		o.Header = h
+	}
+}
+
+func WithCookieJar(jar http.CookieJar) ConnOption {
+	return func(o *ConnOptions) {
+		o.Dialer.Jar = jar
+	}
+}
+
+func NewConn(urlStr string, opts ...ConnOption) (Conn, error) {
+	options := &ConnOptions{
+		QueueSize: 100,
+		Header:    nil,
+		Dialer: &websocket.Dialer{
+			Proxy: http.ProxyFromEnvironment,
+		},
+	}
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	ws, _, err := options.Dialer.Dial(urlStr, options.Header)
 	if err != nil {
 		return nil, err
 	}
 
-	wch := make(chan io.Reader, writerQueueSize)
+	wch := make(chan io.Reader, options.QueueSize)
 	go func() {
 		for r := range wch {
 			wc, err := ws.NextWriter(websocket.TextMessage)
