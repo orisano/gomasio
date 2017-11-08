@@ -63,14 +63,13 @@ func run() error {
 		var conn gomasio.Conn
 		err := retry.Do(func() error {
 			var err error
-			conn, err = gomasio.NewConn(u.String(), 100)
+			conn, err = gomasio.NewConn(u.String(), gomasio.WithQueueSize(100))
 			return err
 		})
 		if err != nil {
 			return errors.Wrap(err, "failed to create connection")
 		}
 		eg.Go(func() error {
-
 			return engineio.Connect(ctx, conn, h)
 		})
 	}

@@ -16,7 +16,7 @@ func run() error {
 	if err != nil {
 		return errors.Wrap(err, "failed to construct url")
 	}
-	conn, err := gomasio.NewConn(u.String(), 1000)
+	conn, err := gomasio.NewConn(u.String(), gomasio.WithQueueSize(100))
 	if err != nil {
 		return errors.Wrap(err, "failed to construct connection")
 	}
