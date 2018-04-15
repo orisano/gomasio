@@ -126,15 +126,17 @@ func (s *socket) PingAfter() {
 	}
 	ctx := context.Background()
 	ctx, s.pingCancel = context.WithCancel(ctx)
+
+	t := time.NewTimer(s.pingInterval)
 	go func() {
+		defer t.Stop()
 		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(s.pingInterval):
+		case <-t.C:
 			wf := s.conn.NewWriter()
-			defer wf.Flush()
 			WritePing(wf)
+			wf.Flush()
 			s.setTimeout(s.pingTimeout)
+		case <-ctx.Done():
 		}
 	}()
 }
@@ -151,12 +153,14 @@ func (s *socket) setTimeout(d time.Duration) {
 	}
 	ctx := context.Background()
 	ctx, s.timeoutCancel = context.WithCancel(ctx)
+
+	t := time.NewTimer(d)
 	go func() {
+		defer t.Stop()
 		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(d):
+		case <-t.C:
 			s.timeout <- struct{}{}
+		case <-ctx.Done():
 		}
 	}()
 }
