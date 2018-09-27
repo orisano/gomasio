@@ -11,8 +11,7 @@ import (
 var IllegalAttachmentsError = errors.New("illegal attachments")
 
 type Decoder struct {
-	r   *bufio.Reader
-	err error
+	r *bufio.Reader
 }
 
 func NewDecoder(r io.Reader) *Decoder {
