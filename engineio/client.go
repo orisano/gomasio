@@ -57,7 +57,7 @@ func readHandshake(r io.Reader) (*Session, error) {
 }
 
 func listen(ctx context.Context, s *socket, handler Handler) error {
-	wg := new(sync.WaitGroup)
+	var wg sync.WaitGroup
 	defer wg.Wait()
 
 	ctx, cancel := context.WithCancel(ctx)
