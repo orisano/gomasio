@@ -1,5 +1,5 @@
 # gomasio
-gomasio is socket.io-client implementation by golang.
+gomasio is socket.io-client implementation by go.
 
 ## Installation
 ```bash
