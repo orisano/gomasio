@@ -107,7 +107,7 @@ func (c *conn) NextReader() (io.Reader, error) {
 }
 
 func (c *conn) NewWriter() WriteFlusher {
-	return &asyncWriter{q: c.wch, buf: new(bytes.Buffer)}
+	return &asyncWriter{q: c.wch, buf: &bytes.Buffer{}}
 }
 
 func (c *conn) Close() error {
