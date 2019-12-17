@@ -1,5 +1,7 @@
 module github.com/orisano/gomasio
 
+go 1.13
+
 require (
 	github.com/gorilla/websocket v1.2.0
 	github.com/orisano/go-retry v0.0.0-20171103122104-346f4de1f594
