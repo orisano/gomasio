@@ -2,7 +2,8 @@ package socketio
 
 import (
 	"encoding/json"
-	"errors"
+
+	"golang.org/x/xerrors"
 )
 
 type Event struct {
@@ -28,7 +29,7 @@ func (e *Event) UnmarshalJSON(p []byte) error {
 	}
 	m := len(msg)
 	if m == 0 {
-		return errors.New("invalid length event")
+		return xerrors.New("invalid length event")
 	}
 	if err := json.Unmarshal(msg[0], &e.Name); err != nil {
 		return err

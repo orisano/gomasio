@@ -5,20 +5,18 @@ import (
 	"log"
 	"time"
 
+	"golang.org/x/xerrors"
+
 	"github.com/orisano/gomasio"
 	"github.com/orisano/gomasio/engineio"
 	"github.com/orisano/gomasio/socketio"
-	"github.com/pkg/errors"
 )
 
 func run() error {
-	u, err := gomasio.GetURL("localhost:8080")
-	if err != nil {
-		return errors.Wrap(err, "failed to construct url")
-	}
+	u, _ := gomasio.GetURL("localhost:8080")
 	conn, err := gomasio.NewConn(u.String(), gomasio.WithQueueSize(100))
 	if err != nil {
-		return errors.Wrap(err, "failed to construct connection")
+		return xerrors.Errorf("create connection: %w", err)
 	}
 
 	ptm := socketio.NewPacketTypeMux()

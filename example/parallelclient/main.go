@@ -9,11 +9,12 @@ import (
 	"time"
 
 	"github.com/orisano/go-retry"
+	"golang.org/x/sync/errgroup"
+	"golang.org/x/xerrors"
+
 	"github.com/orisano/gomasio"
 	"github.com/orisano/gomasio/engineio"
 	"github.com/orisano/gomasio/socketio"
-	"github.com/pkg/errors"
-	"golang.org/x/sync/errgroup"
 )
 
 func run() error {
@@ -24,17 +25,14 @@ func run() error {
 	flag.IntVar(&workers, "workers", 5, "workers")
 
 	var duration int
-	flag.IntVar(&duration, "duration", 500, "millisec")
+	flag.IntVar(&duration, "duration", 500, "milliseconds")
 
 	var host string
 	flag.StringVar(&host, "host", "localhost:8080", "socket.io server addr")
 
 	flag.Parse()
 
-	u, err := gomasio.GetURL(host)
-	if err != nil {
-		return errors.Wrap(err, "failed to construct url")
-	}
+	u, _ := gomasio.GetURL(host)
 	ctx := context.Background()
 
 	wait := make(chan struct{})
@@ -67,7 +65,7 @@ func run() error {
 			return err
 		})
 		if err != nil {
-			return errors.Wrap(err, "failed to create connection")
+			return xerrors.Errorf("create connection: %w", err)
 		}
 		eg.Go(func() error {
 			return engineio.Connect(ctx, conn, h)

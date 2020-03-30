@@ -2,8 +2,9 @@ package engineio
 
 import (
 	"bufio"
-	"errors"
 	"io"
+
+	"golang.org/x/xerrors"
 )
 
 type Encoder struct {
@@ -18,7 +19,7 @@ func NewEncoder(w io.Writer) *Encoder {
 
 func (e *Encoder) Encode(packet *Packet) error {
 	if packet == nil {
-		return errors.New("missing packet")
+		return xerrors.New("missing packet")
 	}
 	e.w.WriteByte(byte(int(packet.Type) + '0'))
 	if packet.Body != nil {

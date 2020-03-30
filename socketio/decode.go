@@ -2,10 +2,11 @@ package socketio
 
 import (
 	"bufio"
+	"errors"
 	"io"
 	"strconv"
 
-	"github.com/pkg/errors"
+	"golang.org/x/xerrors"
 )
 
 var IllegalAttachmentsError = errors.New("illegal attachments")
@@ -23,11 +24,11 @@ func NewDecoder(r io.Reader) *Decoder {
 func (d *Decoder) Decode() (*Packet, error) {
 	b, err := d.r.ReadByte()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to read first byte")
+		return nil, xerrors.Errorf("read first byte: %w", err)
 	}
 	x := b - '0'
 	if x < 0 || 6 < x {
-		return nil, errors.Errorf("invalid packet type. got: %v", b)
+		return nil, xerrors.Errorf("invalid packet type(type=%v)", b)
 	}
 
 	p := &Packet{
@@ -38,20 +39,20 @@ func (d *Decoder) Decode() (*Packet, error) {
 	if p.Type == BINARY_EVENT || p.Type == BINARY_ACK {
 		attachments, err := d.parseAttachments()
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse attachments")
+			return nil, xerrors.Errorf("parse attachments: %w", err)
 		}
 		p.Attachments = attachments
 	}
 
 	namespace, err := d.parseNamespace()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse namespace")
+		return nil, xerrors.Errorf("parse namespace: %w", err)
 	}
 	p.Namespace = namespace
 
 	id, err := d.parseID()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse ID")
+		return nil, xerrors.Errorf("parse ID: %w", err)
 	}
 	p.ID = id
 
