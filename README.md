@@ -7,7 +7,7 @@ go get github.com/orisano/gomasio
 ```
 
 ## Author
-Nao YONASHIRO (@orisano)
+Nao Yonashiro (@orisano)
 
 ## License
 MIT
