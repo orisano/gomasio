@@ -3,11 +3,10 @@ package engineio
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"sync"
 	"time"
-
-	"golang.org/x/xerrors"
 
 	"github.com/orisano/gomasio"
 )
@@ -25,11 +24,11 @@ func (f HandleFunc) HandleMessage(wf gomasio.WriterFactory, body io.Reader) {
 func Connect(ctx context.Context, conn gomasio.Conn, handler Handler) error {
 	r, err := conn.NextReader()
 	if err != nil {
-		return xerrors.Errorf("new reader: %w", err)
+		return fmt.Errorf("new reader: %w", err)
 	}
 	session, err := readHandshake(r)
 	if err != nil {
-		return xerrors.Errorf("read handshake data: %w", err)
+		return fmt.Errorf("read handshake data: %w", err)
 	}
 	s := &socket{
 		conn:         conn,
@@ -44,15 +43,15 @@ func Connect(ctx context.Context, conn gomasio.Conn, handler Handler) error {
 func readHandshake(r io.Reader) (*Session, error) {
 	p, err := NewDecoder(r).Decode()
 	if err != nil {
-		return nil, xerrors.Errorf("decode initial engine.io packet: %w", err)
+		return nil, fmt.Errorf("decode initial engine.io packet: %w", err)
 	}
 	if p.Type != OPEN {
-		return nil, xerrors.Errorf("unexpected engine.io packet type(expected=%v, got=%v)", OPEN, p.Type)
+		return nil, fmt.Errorf("unexpected engine.io packet type(expected=%v, got=%v)", OPEN, p.Type)
 	}
 
 	var session Session
 	if err := json.NewDecoder(p.Body).Decode(&session); err != nil {
-		return nil, xerrors.Errorf("invalid session json: %w", err)
+		return nil, fmt.Errorf("invalid session json: %w", err)
 	}
 	return &session, nil
 }
@@ -71,25 +70,25 @@ func listen(ctx context.Context, s *socket, handler Handler) error {
 		case <-ctx.Done():
 			return nil
 		case <-s.timeout:
-			return xerrors.New("timeout ping response")
+			return fmt.Errorf("timeout ping response")
 		default:
 			r, err := s.conn.NextReader()
 			if err != nil {
-				return xerrors.Errorf("get reader: %w", err)
+				return fmt.Errorf("get reader: %w", err)
 			}
 			p, err := NewDecoder(r).Decode()
 			if err != nil {
-				return xerrors.Errorf("decode engine.io packet: %w", err)
+				return fmt.Errorf("decode engine.io packet: %w", err)
 			}
 
 			s.Heartbeat()
 			switch p.Type {
 			case OPEN:
-				return xerrors.New("unexpected OPEN")
+				return fmt.Errorf("unexpected OPEN")
 			case CLOSE:
 				return nil
 			case PING:
-				return xerrors.New("unexpected PING")
+				return fmt.Errorf("unexpected PING")
 			case PONG:
 				s.PingAfter()
 				break
@@ -100,7 +99,7 @@ func listen(ctx context.Context, s *socket, handler Handler) error {
 					handler.HandleMessage(wf, p.Body)
 				}()
 			case UPGRADE:
-				return xerrors.New("unsupported packet type(type=UPGRADE)")
+				return fmt.Errorf("unsupported packet type(type=UPGRADE)")
 			case NOOP:
 				break
 			}

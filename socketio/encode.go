@@ -2,10 +2,9 @@ package socketio
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"strconv"
-
-	"golang.org/x/xerrors"
 )
 
 type Encoder struct {
@@ -20,7 +19,7 @@ func NewEncoder(w io.Writer) *Encoder {
 
 func (e *Encoder) Encode(packet *Packet) error {
 	if packet == nil {
-		return xerrors.New("missing packet")
+		return fmt.Errorf("missing packet")
 	}
 	e.w.WriteByte(byte(packet.Type) + '0')
 	if len(packet.Namespace) > 0 && packet.Namespace != "/" {

@@ -2,11 +2,11 @@ package gomasio
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/gorilla/websocket"
-	"golang.org/x/xerrors"
 
 	"github.com/orisano/gomasio/internal"
 )
@@ -102,7 +102,7 @@ func (c *conn) NextReader() (io.Reader, error) {
 		return nil, err
 	}
 	if mt != websocket.TextMessage {
-		return nil, xerrors.New("currently supports only text message")
+		return nil, fmt.Errorf("currently supports only text message: %v", mt)
 	}
 	return r, nil
 }

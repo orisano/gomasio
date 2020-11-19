@@ -2,9 +2,8 @@ package socketio
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
-
-	"golang.org/x/xerrors"
 
 	"github.com/orisano/gomasio"
 )
@@ -29,7 +28,7 @@ func NewContext(wf gomasio.WriterFactory, packet *Packet) (Context, error) {
 	if packet.Type == EVENT {
 		var e Event
 		if err := json.NewDecoder(packet.Body).Decode(&e); err != nil {
-			return nil, xerrors.Errorf("decode event: %w", err)
+			return nil, fmt.Errorf("decode event: %w", err)
 		}
 		ctx.event = &e
 	}
@@ -61,7 +60,7 @@ func (c *context) Event() string {
 
 func (c *context) Args(dst ...interface{}) error {
 	if len(dst) != len(c.event.Args) {
-		return xerrors.New("not match args length")
+		return fmt.Errorf("not match args length")
 	}
 	for i := range dst {
 		if err := json.Unmarshal(c.event.Args[i], dst[i]); err != nil {
@@ -81,7 +80,7 @@ func (c *context) Emit(event string, args ...interface{}) error {
 		for _, arg := range args {
 			b, err := json.Marshal(arg)
 			if err != nil {
-				return xerrors.Errorf("marshal args: %w", err)
+				return fmt.Errorf("marshal args: %w", err)
 			}
 			e.Args = append(e.Args, b)
 		}
@@ -94,10 +93,10 @@ func (c *context) Emit(event string, args ...interface{}) error {
 	}
 	wf := c.wf.NewWriter()
 	if err := NewEncoder(wf).Encode(&p); err != nil {
-		return xerrors.Errorf("encode header: %w", err)
+		return fmt.Errorf("encode header: %w", err)
 	}
 	if err := json.NewEncoder(wf).Encode(e); err != nil {
-		return xerrors.Errorf("encode event: %w", err)
+		return fmt.Errorf("encode event: %w", err)
 	}
 	return wf.Flush()
 }

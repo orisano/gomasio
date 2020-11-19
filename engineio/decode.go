@@ -2,9 +2,8 @@ package engineio
 
 import (
 	"bufio"
+	"fmt"
 	"io"
-
-	"golang.org/x/xerrors"
 )
 
 type Decoder struct {
@@ -24,7 +23,7 @@ func (d *Decoder) Decode() (*Packet, error) {
 	}
 	x := b - '0'
 	if x < 0 || 6 < x {
-		return nil, xerrors.Errorf("invalid packet type(type=%v)", b)
+		return nil, fmt.Errorf("invalid packet type(type=%v)", b)
 	}
 	p := &Packet{
 		Type: PacketType(x),
