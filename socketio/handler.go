@@ -6,7 +6,6 @@ import (
 
 	"github.com/orisano/gomasio"
 	"github.com/orisano/gomasio/engineio"
-	"github.com/orisano/gomasio/internal"
 )
 
 type Handler interface {
@@ -26,12 +25,10 @@ type engineioHandler struct {
 func (h *engineioHandler) HandleMessage(wf gomasio.WriterFactory, body io.Reader) {
 	p, err := NewDecoder(body).Decode()
 	if err != nil && err != io.EOF {
-		internal.Log("[ERROR] failed to decode engine.io packet", err)
 		return
 	}
 	ctx, err := NewContext(wf, p)
 	if err != nil {
-		internal.Log("[ERROR] failed to construct context", err)
 		return
 	}
 	h.handler.HandleSocketIO(ctx)
@@ -62,8 +59,6 @@ func (m *EventMux) HandleSocketIO(ctx Context) {
 	handler, ok := m.handlers[ev]
 	if ok {
 		handler.HandleSocketIO(ctx)
-	} else {
-		internal.Log("[INFO] handler not found: event =", ev)
 	}
 }
 
@@ -90,8 +85,6 @@ func (m *NamespaceMux) HandleSocketIO(ctx Context) {
 	handler, ok := m.handlers[ns]
 	if ok {
 		handler.HandleSocketIO(ctx)
-	} else {
-		internal.Log("[INFO] handler not found: namespace =", ns)
 	}
 }
 
@@ -118,8 +111,6 @@ func (m *PacketTypeMux) HandleSocketIO(ctx Context) {
 	handler, ok := m.handlers[pt]
 	if ok {
 		handler.HandleSocketIO(ctx)
-	} else {
-		internal.Log("[INFO] handler not found: packetType =", pt)
 	}
 }
 

@@ -7,8 +7,6 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
-
-	"github.com/orisano/gomasio/internal"
 )
 
 type WriteFlusher interface {
@@ -80,11 +78,9 @@ func NewConn(urlStr string, opts ...ConnOption) (Conn, error) {
 		for r := range wch {
 			wc, err := ws.NextWriter(websocket.TextMessage)
 			if err != nil {
-				internal.Log("[ERROR] failed to get writer: ", err)
 				continue
 			}
 			if _, err := io.Copy(wc, r); err != nil {
-				internal.Log("[ERROR] failed to write websocket: ", err)
 				continue
 			}
 			wc.Close()
