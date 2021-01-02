@@ -5,12 +5,12 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"flag"
+	"fmt"
 	"log"
 	"time"
 
 	"github.com/orisano/go-retry"
 	"golang.org/x/sync/errgroup"
-	"golang.org/x/xerrors"
 
 	"github.com/orisano/gomasio"
 	"github.com/orisano/gomasio/engineio"
@@ -65,7 +65,7 @@ func run() error {
 			return err
 		})
 		if err != nil {
-			return xerrors.Errorf("create connection: %w", err)
+			return fmt.Errorf("create connection: %w", err)
 		}
 		eg.Go(func() error {
 			return engineio.Connect(ctx, conn, h)

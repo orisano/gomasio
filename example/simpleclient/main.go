@@ -2,10 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
-
-	"golang.org/x/xerrors"
 
 	"github.com/orisano/gomasio"
 	"github.com/orisano/gomasio/engineio"
@@ -16,7 +15,7 @@ func run() error {
 	u, _ := gomasio.GetURL("localhost:8080")
 	conn, err := gomasio.NewConn(u.String(), gomasio.WithQueueSize(100))
 	if err != nil {
-		return xerrors.Errorf("create connection: %w", err)
+		return fmt.Errorf("create connection: %w", err)
 	}
 
 	ptm := socketio.NewPacketTypeMux()
